@@ -29,7 +29,7 @@ var sprites = []uint8{
 type cpu struct {
 	mem [4096]uint8 // memory
 	pc  uint16      // program counter
-	v     [16]uint8      // generic registers
+	v   [16]uint8   // generic registers
 	//i     uint16         // special 16-bit 'index' register
 	//dt    uint8          // delay timer
 	//st    uint8          // sound timer
@@ -83,8 +83,8 @@ func (c *cpu) fetch() uint16 {
 // execute an opcode
 func (c *cpu) exec(opcode uint16) (bool, error) {
 	// decode
-	family := opcode & 0xF000 // the highest 4 bits of the opcode
-	nnn := opcode & 0x0FFF    // addr
+	family := opcode & 0xF000          // the highest 4 bits of the opcode
+	nnn := opcode & 0x0FFF             // addr
 	n := uint8(opcode & 0x000F)        // nibble
 	x := uint8((opcode & 0x0F00) >> 8) // x operand
 	y := uint8((opcode & 0x00F0) >> 4) // y operand
@@ -156,29 +156,29 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 	case 0x7000:
 		instruction = "7XKK"
 		cPseudo = "v[x] = v[x] + kk"
-		c.v[x] =  c.v[x] + kk
+		c.v[x] = c.v[x] + kk
 	case 0x8000:
 		switch n {
 		case 0x0:
 			instruction = "8XY0"
 			cPseudo = "v[x] = v[y]"
-			c.v[x] =  c.v[y]
+			c.v[x] = c.v[y]
 		case 0x1:
 			instruction = "8XY1"
 			cPseudo = "v[x] = v[x] | v[y]"
-			c.v[x] =  (c.v[x] | c.v[y])
+			c.v[x] = (c.v[x] | c.v[y])
 		case 0x2:
 			instruction = "8XY2"
 			cPseudo = "v[x] = v[x] & v[y]"
-			c.v[x] =  (c.v[x] & c.v[y])
+			c.v[x] = (c.v[x] & c.v[y])
 		case 0x3:
 			instruction = "8XY3"
 			cPseudo = "v[x] = v[x] ^ v[y]"
-			c.v[x] =  (c.v[x] ^ c.v[y])
+			c.v[x] = (c.v[x] ^ c.v[y])
 		case 0x4:
 			instruction = "8XY4"
 			cPseudo = "if v[x] + v[y] > 0xFF: v[F] = 1 else: v[F] = 0; v[x] = v[x] + v[y]"
-			if uint16(c.v[x]) + uint16(c.v[y]) > 0xFF {
+			if uint16(c.v[x])+uint16(c.v[y]) > 0xFF {
 				c.v[0xF] = 0x01
 			} else {
 				c.v[0xF] = 0x00
@@ -196,7 +196,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		case 0x6:
 			instruction = "8XY6"
 			cPseudo = "if v[x] & 0x01: v[F] = 1 else: v[F] = 0; v[x] = v[x] / 2"
-			if c.v[x] & 0x01 == 0x01 {
+			if c.v[x]&0x01 == 0x01 {
 				c.v[0xF] = 1
 			} else {
 				c.v[0xF] = 0
@@ -211,13 +211,34 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 				c.v[0xF] = 0x00
 			}
 			c.v[x] = c.v[y] - c.v[x]
+		case 0xE:
+			instruction = "8XYE"
+			cPseudo = "if v[x] >> 7 == 1: v[F] = 1 else: v[F] = 0; v[x] = v[x] * 2"
+			if (c.v[x] >> 7) == 0x01 {
+				c.v[0xF] = 0x01
+			} else {
+				c.v[0xF] = 0x00
+			}
+			c.v[x] = c.v[x] * 2
+		default:
+			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
+			return false, errors.New(msg)
+		}
+	case 0x9000:
+		switch n {
+		case 0x00:
+			instruction = "9XY0"
+			cPseudo = "if v[x] != v[y]: pc += 2"
+			if c.v[x] != c.v[y] {
+				c.pc = c.pc + 2
+			}
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
 			return false, errors.New(msg)
 		}
 	}
 
-	if c.noDebug {
+	if !c.noDebug {
 		log.Printf(
 			"opcode: 0x%X, instruction: %s, cPseudo: %s, memaddr: 0x%X",
 			opcode,
