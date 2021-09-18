@@ -391,6 +391,12 @@ func TestExec(t *testing.T) {
 				},
 			},
 		},
+		{
+			"ANNN",
+			0xA123,
+			cpu{},
+			cpu{i: 0x0123},
+		},
 	}
 
 	for _, tc := range cases {
@@ -428,7 +434,15 @@ func TestExec(t *testing.T) {
 				)
 			}
 		}
-		// i     uint16         // special 16-bit 'index' register
+		// i
+		if tc.cpu.i != tc.expected.i {
+			t.Fatalf(
+				"fatal i-reg error for %s: expected 0x%X, got 0x%X",
+				tc.desc,
+				tc.expected.i,
+				tc.cpu.i,
+			)
+		}
 		// dt    uint8          // delay timer
 		// st    uint8          // sound timer
 		// sp

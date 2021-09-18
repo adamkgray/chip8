@@ -30,7 +30,7 @@ type cpu struct {
 	mem [4096]uint8 // memory
 	pc  uint16      // program counter
 	v   [16]uint8   // generic registers
-	//i     uint16         // special 16-bit 'index' register
+	i     uint16         // special 16-bit 'index' register
 	//dt    uint8          // delay timer
 	//st    uint8          // sound timer
 	sp    uint8      // stack pointer
@@ -228,7 +228,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		switch n {
 		case 0x00:
 			instruction = "9XY0"
-			cPseudo = "if v[x] != v[y]: pc += 2"
+			cPseudo = "if v[x] != v[y]: pc = pc + 2"
 			if c.v[x] != c.v[y] {
 				c.pc = c.pc + 2
 			}
@@ -236,6 +236,10 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
 			return false, errors.New(msg)
 		}
+	case 0xA000:
+		instruction = "ANNN"
+		cPseudo = "i = nnn"
+		c.i = nnn
 	}
 
 	if !c.noDebug {
