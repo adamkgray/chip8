@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 )
 
 // character sprites used by chip8 programs
@@ -30,13 +31,13 @@ type cpu struct {
 	mem [4096]uint8 // memory
 	pc  uint16      // program counter
 	v   [16]uint8   // generic registers
-	i     uint16         // special 16-bit 'index' register
+	i   uint16      // special 16-bit 'index' register
 	//dt    uint8          // delay timer
 	//st    uint8          // sound timer
 	sp    uint8      // stack pointer
 	stack [16]uint16 // stack
 	//keys  [16]uint8      // keyboard state
-	disp    [64 * 32]uint8 // display
+	disp    [64][32]uint8 // display
 	noDebug bool           // print debug info
 }
 
@@ -102,8 +103,10 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		case 0x00E0:
 			instruction = "00E0"
 			cPseudo = "clear()"
-			for i := range c.disp {
-				c.disp[i] = 0x00
+			for i := 0; i < 64; i ++ {
+				for j := 0; j < 32; j ++ {
+					c.disp[i][j] = 0x00
+				}
 			}
 		case 0x00EE:
 			instruction = "00EE"
@@ -244,6 +247,18 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		instruction = "BNNN"
 		cPseudo = "pc = v[0] + nnn"
 		c.pc = uint16(c.v[0x0]) + nnn
+	case 0xC000: // TODO: unit test
+		instruction = "CNNN"
+		cPseudo = "v[x] = rand-byte & kk"
+		c.v[x] = uint8(rand.Uint32()) & kk
+	case 0xD000:
+		instruction = "DXY0"
+		cPseudo = "/* write n-byte sprite to disp */"
+		var i uint8
+		for i = 0; i < n; i++ {
+			continue
+		}
+
 	}
 
 	if !c.noDebug {
