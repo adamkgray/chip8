@@ -240,6 +240,10 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		instruction = "ANNN"
 		cPseudo = "i = nnn"
 		c.i = nnn
+	case 0xB000:
+		instruction = "BNNN"
+		cPseudo = "pc = v[0] + nnn"
+		c.pc = uint16(c.v[0x0]) + nnn
 	}
 
 	if !c.noDebug {
