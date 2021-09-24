@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func mockAllOnDisplay() [64][32]uint8 {
-	disp := [64][32]uint8{}
-	for i := 0;  i < 64; i++ {
-		for j := 0; j < 32; j++ {
-			disp[i][j] = 0x01
+func mockAllOnDisplay() [32][64]uint8 {
+	disp := [32][64]uint8{}
+	for i := 0;  i < 32; i++ {
+		for j := 0; j < 64; j++ {
+			disp[i][j] = 1
 		}
 	}
 	return disp
@@ -445,6 +445,13 @@ func TestExec(t *testing.T) {
 					0xF0, 0x80, 0xF0, 0x80, 0x80,
 				},
 				i: 0x0A,
+				disp: [32][64]uint8{
+					{0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0},
+				},
 			},
 			cpu{
 				mem: [4096]uint8{
@@ -466,8 +473,18 @@ func TestExec(t *testing.T) {
 					0xF0, 0x80, 0xF0, 0x80, 0x80,
 				},
 				i: 0x0A,
-				disp: [64][32]uint8{
-					{0xF0, 0x10, 0xF0, 0x80, 0xF0}, // 2
+				disp: [32][64]uint8{
+					{1, 1, 1, 1, 0, 0, 0, 0},
+					{0, 0, 0, 1, 0, 0, 0, 0},
+					{1, 1, 1, 1, 0, 0, 0, 0},
+					{1, 0, 0, 0, 0, 0, 0, 0},
+					{1, 1, 1, 1, 0, 0, 0, 0},
+				},
+				v: [16]uint8{
+					0x0, 0x0, 0x0, 0x0,
+					0x0, 0x0, 0x0, 0x0,
+					0x0, 0x0, 0x0, 0x0,
+					0x0, 0x0, 0x0, 0x0,
 				},
 			},
 		},
@@ -541,16 +558,16 @@ func TestExec(t *testing.T) {
 		}
 		// keys  [16]uint8      // keyboard state
 		// disp
-		for i := 0; i < 64; i++ {
-			for j := 0; j < 32; j++ {
+		for i := 0; i < 32; i++ {
+			for j := 0; j < 64; j++ {
 				if tc.cpu.disp[i][j] != tc.expected.disp[i][j] {
 					t.Fatalf(
-						"fatal display error for %s: expected 0x%X, got 0x%X at pixel (0x%X,0x%X)",
+						"fatal display error for %s: expected %d, got %d at pixel (%d,%d)",
 						tc.desc,
-						tc.expected.disp[i],
-						tc.cpu.disp[i],
-						i,
+						tc.expected.disp[i][j],
+						tc.cpu.disp[i][j],
 						j,
+						i,
 					)
 				}
 			}

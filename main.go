@@ -37,7 +37,7 @@ type cpu struct {
 	sp    uint8      // stack pointer
 	stack [16]uint16 // stack
 	//keys  [16]uint8      // keyboard state
-	disp    [64][32]uint8 // display
+	disp    [32][64]uint8 // display
 	noDebug bool           // print debug info
 }
 
@@ -103,8 +103,8 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		case 0x00E0:
 			instruction = "00E0"
 			cPseudo = "clear()"
-			for i := 0; i < 64; i ++ {
-				for j := 0; j < 32; j ++ {
+			for i := 0; i < 32; i ++ {
+				for j := 0; j < 64; j ++ {
 					c.disp[i][j] = 0x00
 				}
 			}
@@ -252,16 +252,56 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		cPseudo = "v[x] = rand-byte & kk"
 		c.v[x] = uint8(rand.Uint32()) & kk
 	case 0xD000:
-		instruction = "DXY0"
-		cPseudo = "/* write n-byte sprite to disp */"
-		var i uint8
-		for i = 0; i < n; i++ {
-			continue
-		}
+		instruction = "DXYN"
+		cPseudo = "/* write n-rows of sprite to disp */"
 
+		// assume no pixels will be erased
+		c.v[0xF] = 0x00
+
+		// iterate through sprite rows
+		var rows uint8
+		for rows = 0; rows < n; rows++ {
+			// iterate through bits of sprite
+			var cols uint8
+			for cols = 0; cols < 8; cols++ {
+				// handle x wrap
+				dispX := c.v[x] + cols
+				if dispX >= 64 {
+					dispX -= 64
+				}
+
+				// handle y wrap
+				dispY := c.v[y] + rows
+				if dispY >= 32 {
+					dispY -= 32
+				}
+
+				// was the pixel on?
+				pixelWasOn := c.disp[dispY][dispX] > 0
+
+				// write to display
+				pixel := ((uint8(c.mem[c.i + uint16(rows)])<<cols) & 0x80)>>0x07
+				c.disp[dispY][dispX] = c.disp[dispY][dispX] ^ pixel
+
+				// is the pixel now off?
+				pixelNowOff := c.disp[dispY][dispX] == 0
+
+				// flag VF if any pixels were erased
+
+				if pixelWasOn && pixelNowOff {
+					c.v[0xF] = 0x01
+				}
+
+			}
+		}
+		fmt.Printf("%v\n", c.disp[0])
+		fmt.Printf("%v\n", c.disp[1])
+		fmt.Printf("%v\n", c.disp[2])
+		fmt.Printf("%v\n", c.disp[3])
+		fmt.Printf("%v\n", c.disp[4])
 	}
 
-	if !c.noDebug {
+	if c.noDebug {
 		log.Printf(
 			"opcode: 0x%X, instruction: %s, cPseudo: %s, memaddr: 0x%X",
 			opcode,
