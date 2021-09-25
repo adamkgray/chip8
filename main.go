@@ -294,11 +294,6 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 
 			}
 		}
-		fmt.Printf("%v\n", c.disp[0])
-		fmt.Printf("%v\n", c.disp[1])
-		fmt.Printf("%v\n", c.disp[2])
-		fmt.Printf("%v\n", c.disp[3])
-		fmt.Printf("%v\n\n", c.disp[4])
 	}
 
 	if c.noDebug {
