@@ -36,7 +36,7 @@ type cpu struct {
 	//st    uint8          // sound timer
 	sp    uint8      // stack pointer
 	stack [16]uint16 // stack
-	//keys  [16]uint8      // keyboard state
+	keys  [16]uint8      // keyboard state
 	disp    [32][64]uint8 // display
 	noDebug bool           // print debug info
 }
@@ -111,7 +111,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		case 0x00EE:
 			instruction = "00EE"
 			cPseudo = "return"
-			c.sp = c.sp - 1
+			c.sp -= 1
 			c.pc = c.stack[c.sp]
 			c.stack[c.sp] = 0x00
 		default:
@@ -126,19 +126,19 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		instruction = "2NNN"
 		cPseudo = "function call"
 		c.stack[c.sp] = c.pc
-		c.sp = c.sp + 1
+		c.sp += 1
 		c.pc = nnn
 	case 0x3000:
 		instruction = "3XKK"
 		cPseudo = "if v[x] == kk: continue"
 		if c.v[x] == kk {
-			c.pc = c.pc + 2
+			c.pc += 2
 		}
 	case 0x4000:
 		instruction = "4XKK"
 		cPseudo = "if v[x] != kk: continue"
 		if c.v[x] != kk {
-			c.pc = c.pc + 2
+			c.pc += 2
 		}
 	case 0x5000:
 		switch n {
@@ -146,7 +146,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			instruction = "5XY0"
 			cPseudo = "if v[x] == v[y]: continue"
 			if c.v[x] == c.v[y] {
-				c.pc = c.pc + 2
+				c.pc += 2
 			}
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
@@ -186,7 +186,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			} else {
 				c.v[0xF] = 0x00
 			}
-			c.v[x] = c.v[x] + c.v[y]
+			c.v[x] += c.v[y]
 		case 0x5:
 			instruction = "8XY5"
 			cPseudo = "if v[x] > v[y]: v[F] = 1 else: v[F] = 0; v[x] = v[x] - v[y]"
@@ -195,7 +195,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			} else {
 				c.v[0xF] = 0x00
 			}
-			c.v[x] = c.v[x] - c.v[y]
+			c.v[x] -= c.v[y]
 		case 0x6:
 			instruction = "8XY6"
 			cPseudo = "if v[x] & 0x01: v[F] = 1 else: v[F] = 0; v[x] = v[x] / 2"
@@ -233,7 +233,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			instruction = "9XY0"
 			cPseudo = "if v[x] != v[y]: pc = pc + 2"
 			if c.v[x] != c.v[y] {
-				c.pc = c.pc + 2
+				c.pc += 2
 			}
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
@@ -280,6 +280,11 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 				pixelWasOn := c.disp[dispY][dispX] > 0
 
 				// write to display
+				// how?
+				// get the sprite row from memory
+				// bit shift it to the left for the correct pixel
+				// mask it with 0x80 to get only the leftmost bit
+				// shift that bit all the way back to the right to get a 1 or 0
 				pixel := ((uint8(c.mem[c.i + uint16(rows)])<<cols) & 0x80)>>0x07
 				c.disp[dispY][dispX] = c.disp[dispY][dispX] ^ pixel
 
@@ -292,6 +297,15 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 					c.v[0xF] = 0x01
 				}
 
+			}
+		}
+	case 0xE000:
+		switch kk {
+		case 0x9E:
+			instruction = "EX9E"
+			cPseudo = "if keys[v[x]] == PRESSED: pc += 2"
+			if c.keys[c.v[x]] == 1 {
+				c.pc = c.pc + 2
 			}
 		}
 	}
