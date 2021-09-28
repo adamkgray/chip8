@@ -5,6 +5,7 @@
 *.so
 *.dylib
 main
+chip8
 
 # Test binary, built with `go test -c`
 *.test
