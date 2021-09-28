@@ -925,7 +925,7 @@ func TestExec(t *testing.T) {
 					0, 0, 0, 0,
 					0, 0, 0, 0,
 				},
-				i: 5,
+				i: 4,
 				mem: [4096]uint8{},
 			},
 			cpu{
@@ -935,7 +935,7 @@ func TestExec(t *testing.T) {
 					0, 0, 0, 0,
 					0, 0, 0, 0,
 				},
-				i: 5,
+				i: 4,
 				mem: [4096]uint8{
 					0, 0, 0, 0,
 					1, 2, 3, 0,

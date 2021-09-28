@@ -343,6 +343,12 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			instruction = "FX29"
 			cPseudo = "i = &SPRITE(v[x])"
 			c.i = uint16(5 * c.v[x])
+		case 0x33:
+			instruction = "FX33"
+			cPseudo = "mem[i], mem[i+1], mem[i+2] = BCD(v[x])"
+			c.mem[c.i] 		= c.v[x] / 100
+			c.mem[c.i+1]	= (c.v[x] % 100) / 10
+			c.mem[c.i+2]	= ((c.v[x] % 100) % 10) / 1
 		}
 	}
 
