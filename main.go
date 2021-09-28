@@ -41,7 +41,7 @@ type cpu struct {
 	noDebug bool			// debug switch
 }
 
-// set initial state, a prerequisite for all program execution
+// set initial state, prerequisite for all program execution
 func (c *cpu) init(program []byte) {
 	// load sprites into RAM
 	copy(c.mem[0:], sprites)
@@ -56,7 +56,7 @@ func (c *cpu) init(program []byte) {
 	c.sp = 0x00
 }
 
-// fetch and execute a single opcode
+// fetch and execute single opcode
 func (c *cpu) cycle() bool {
 	// fetch opcode
 	opcode := c.fetch()
@@ -68,7 +68,7 @@ func (c *cpu) cycle() bool {
 	return ok
 }
 
-// fetch the next opcode and advance the program counter
+// fetch next opcode and advance program counter
 func (c *cpu) fetch() uint16 {
 	// fetch opcode
 	upper := uint16(c.mem[c.pc]) << 8
@@ -81,7 +81,7 @@ func (c *cpu) fetch() uint16 {
 	return opcode
 }
 
-// execute an opcode
+// execute opcode
 func (c *cpu) exec(opcode uint16) (bool, error) {
 	// decode
 	family := opcode & 0xF000          // the highest 4 bits of the opcode
