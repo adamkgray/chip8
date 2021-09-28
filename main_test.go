@@ -896,6 +896,17 @@ func TestExec(t *testing.T) {
 			}
 		}
 		// keys  [16]uint8      // keyboard state
+		for i := range tc.cpu.keys {
+			if tc.cpu.keys[i] != tc.expected.keys[i] {
+				t.Fatalf(
+					"fatal display error for %s: expected %d, got %d at key %X",
+					tc.desc,
+					tc.cpu.keys[i],
+					tc.expected.keys[i],
+					i,
+				)
+			}
+		}
 		// disp
 		for i := 0; i < 32; i++ {
 			for j := 0; j < 64; j++ {
