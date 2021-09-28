@@ -28,17 +28,17 @@ var sprites = []uint8{
 }
 
 type cpu struct {
-	mem [4096]uint8 	  // memory
-	pc  uint16      	  // program counter
-	v   [16]uint8         // generic registers
-	i   uint16            // special 16-bit 'index' register
-	dt    uint8           // delay timer
-	//st    uint8           // sound timer
-	sp    uint8           // stack pointer
-	stack [16]uint16 	  // stack
-	keys  [16]uint8       // keyboard state
-	disp    [32][64]uint8 // display
-	noDebug bool          // print debug info
+	mem 	[4096]uint8		// memory
+	pc  	uint16			// programme counter
+	v 		[16]uint8		// general registers
+	i 		uint16			// special 'i' register
+	dt 		uint8			// delay timer
+	st 		uint8			// sound timer
+	sp 		uint8			// stack pointer
+	stack 	[16]uint16		// stack
+	keys 	[16]uint8		// keyboard
+	disp 	[32][64]uint8 	// display
+	noDebug bool			// debug switch
 }
 
 // set initial state, a prerequisite for all program execution
@@ -331,6 +331,18 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			instruction = "FX15"
 			cPseudo = "dt = v[x]"
 			c.dt = c.v[x]
+		case 0x18:
+			instruction = "FX18"
+			cPseudo = "st = v[x]"
+			c.st = c.v[x]
+		case 0x1E:
+			instruction = "FX1E"
+			cPseudo = "i += v[x]"
+			c.i += uint16(c.v[x])
+		case 0x29:
+			instruction = "FX29"
+			cPseudo = "i = &SPRITE(v[x])"
+			c.i = uint16(5 * c.v[x])
 		}
 	}
 
