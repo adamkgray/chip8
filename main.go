@@ -300,6 +300,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 
 			}
 		}
+		fmt.Print("\033[H\033[2J")
 		for row := range c.disp {
 			for col := range c.disp[row] {
 				if c.disp[row][col] == 1 {
@@ -398,7 +399,7 @@ func (c *cpu) getkey() uint8 {
 
 func main() {
 	c := &cpu{}
-	program, _ := ioutil.ReadFile("maze.ch8")
+	program, _ := ioutil.ReadFile("Sierpinski [Sergey Naydenov, 2010].ch8")
 	c.init(program)
 	for c.cycle() {
 	}
