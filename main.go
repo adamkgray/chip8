@@ -347,8 +347,22 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			instruction = "FX33"
 			cPseudo = "mem[i], mem[i+1], mem[i+2] = BCD(v[x])"
 			c.mem[c.i] 		= c.v[x] / 100
-			c.mem[c.i+1]	= (c.v[x] % 100) / 10
-			c.mem[c.i+2]	= ((c.v[x] % 100) % 10) / 1
+			c.mem[c.i + 1]	= (c.v[x] % 100) / 10
+			c.mem[c.i + 2]	= ((c.v[x] % 100) % 10) / 1
+		case 0x55:
+			instruction = "FX55"
+			cPseudo = "mem[i:i+x] = v[0:x]"
+			var j uint8
+			for j = 0; j <= x; j++ {
+				c.mem[c.i + uint16(j)] = c.v[j]
+			}
+		case 0x65:
+			instruction = "FX65"
+			cPseudo = "v[0:x] = mem[i:i+x]"
+			var j uint8
+			for j = 0; j <= x; j++ {
+				c.v[j] = c.mem[c.i + uint16(j)]
+			}
 		}
 	}
 
