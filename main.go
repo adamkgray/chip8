@@ -28,17 +28,17 @@ var sprites = []uint8{
 }
 
 type cpu struct {
-	mem [4096]uint8 // memory
-	pc  uint16      // program counter
-	v   [16]uint8   // generic registers
-	i   uint16      // special 16-bit 'index' register
-	//dt    uint8          // delay timer
-	//st    uint8          // sound timer
-	sp    uint8      // stack pointer
-	stack [16]uint16 // stack
-	keys  [16]uint8      // keyboard state
+	mem [4096]uint8 	  // memory
+	pc  uint16      	  // program counter
+	v   [16]uint8         // generic registers
+	i   uint16            // special 16-bit 'index' register
+	dt    uint8           // delay timer
+	//st    uint8           // sound timer
+	sp    uint8           // stack pointer
+	stack [16]uint16 	  // stack
+	keys  [16]uint8       // keyboard state
 	disp    [32][64]uint8 // display
-	noDebug bool           // print debug info
+	noDebug bool          // print debug info
 }
 
 // set initial state, a prerequisite for all program execution
@@ -305,8 +305,32 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 			instruction = "EX9E"
 			cPseudo = "if keys[v[x]] == PRESSED: pc += 2"
 			if c.keys[c.v[x]] == 1 {
-				c.pc = c.pc + 2
+				c.pc += 2
 			}
+		case 0xA1:
+			instruction = "EX9E"
+			cPseudo = "if keys[v[x]] == !PRESSED: pc += 2"
+			if c.keys[c.v[x]] == 0 {
+				c.pc += 2
+			}
+		default:
+			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
+			return false, errors.New(msg)
+		}
+	case 0xF000:
+		switch kk {
+		case 0x07:
+			instruction = "FX07"
+			cPseudo = "v[x] = dt"
+			c.v[x] = c.dt
+		case 0x0A:
+			instruction = "FX0A"
+			cPseudo = "v[x] = getkey()"
+			c.v[x] = c.getkey()
+		case 0x15:
+			instruction = "FX15"
+			cPseudo = "dt = v[x]"
+			c.dt = c.v[x]
 		}
 	}
 
@@ -323,8 +347,14 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 	return true, nil
 }
 
+// halt until any key is pressed, return key value
+func (c *cpu) getkey() uint8 {
+	// TODO: get actual key press
+	return 0
+}
+
 func main() {
-	c := cpu{}
+	c := &cpu{}
 	program := []byte{0x00, 0xE0, 0x80, 0x13}
 	c.init(program)
 	for c.cycle() {

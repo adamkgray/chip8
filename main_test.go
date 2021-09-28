@@ -421,7 +421,7 @@ func TestExec(t *testing.T) {
 				},
 			},
 		},
-		// TODO: unit test CNNN
+		// TODO: test CNNN (random mask)
 		{
 			"DXYN",
 			0xD005,
@@ -774,6 +774,51 @@ func TestExec(t *testing.T) {
 				},
 			},
 		},
+		{
+			"FX07",
+			0xF107,
+			cpu{
+				dt: 9,
+			},
+			cpu{
+				dt: 9,
+				v: [16]uint8{
+					0, 9, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 0,
+				},
+			},
+		},
+		// TODO: test FX0A (halt until keypress)
+		{
+			"FX15",
+			0xF015,
+			cpu{
+				v: [16]uint8{
+					1, 0, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 0,
+				},
+				dt: 0,
+			},
+			cpu{
+				v: [16]uint8{
+					1, 0, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 0,
+				},
+				dt: 1,
+			},
+		},
+		{
+			"",
+			0x0000,
+			cpu{},
+			cpu{},
+		},
 	}
 
 	for _, tc := range cases {
@@ -821,6 +866,14 @@ func TestExec(t *testing.T) {
 			)
 		}
 		// dt    uint8          // delay timer
+		if tc.cpu.dt != tc.expected.dt {
+			t.Fatalf(
+				"fatal delay timer error for %s: expected 0x%X, got 0x%X",
+				tc.desc,
+				tc.expected.dt,
+				tc.cpu.dt,
+			)
+		}
 		// st    uint8          // sound timer
 		// sp
 		if tc.cpu.sp != tc.expected.sp {
