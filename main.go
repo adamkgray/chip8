@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"io/ioutil"
 )
 
 // character sprites used by chip8 programs
@@ -299,6 +300,16 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 
 			}
 		}
+		for row := range c.disp {
+			for col := range c.disp[row] {
+				if c.disp[row][col] == 1 {
+					fmt.Printf("**")
+				} else {
+					fmt.Printf("  ")
+				}
+			}
+			fmt.Print("\n")
+		}
 	case 0xE000:
 		switch kk {
 		case 0x9E:
@@ -387,7 +398,7 @@ func (c *cpu) getkey() uint8 {
 
 func main() {
 	c := &cpu{}
-	program := []byte{0x00, 0xE0, 0x80, 0x13}
+	program, _ := ioutil.ReadFile("maze.ch8")
 	c.init(program)
 	for c.cycle() {
 	}
