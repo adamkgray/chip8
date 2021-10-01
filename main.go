@@ -47,12 +47,12 @@ type cpu struct {
 	noDebug bool          // debug switch
 }
 
-// print pixel to display
-func printPixel(x, y uint8, c rune) {
+// print pixel to display (configured for termbox)
+func (c *cpu) draw(x, y uint8, r rune, f func(x, y int, c rune, fg , bg termbox.Attribute)) {
 	wideX := int(x * 2)
 	wideY := int(y)
-	termbox.SetCell(wideX, wideY, c, termbox.ColorGreen, termbox.ColorDefault)
-	termbox.SetCell(wideX+runewidth.RuneWidth(c), wideY, c, termbox.ColorGreen, termbox.ColorDefault)
+	f(wideX, wideY, r, termbox.ColorGreen, termbox.ColorDefault)
+	f(wideX+runewidth.RuneWidth(r), wideY, r, termbox.ColorGreen, termbox.ColorDefault)
 }
 
 // set initial state, prerequisite for all program execution
@@ -71,11 +71,14 @@ func (c *cpu) init(program []byte) {
 }
 
 // fetch and execute single opcode
-func (c *cpu) cycle() bool {
+func (c *cpu) cycle(
+	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
+	flushPlugin func() error,
+) bool {
 	// fetch opcode
 	opcode := c.fetch()
 	// exec opcode
-	ok, err := c.exec(opcode)
+	ok, err := c.exec(opcode, drawPlugin, flushPlugin)
 	if err != nil {
 		log.Print(err)
 	}
@@ -102,7 +105,11 @@ func (c *cpu) fetch() uint16 {
 }
 
 // execute opcode
-func (c *cpu) exec(opcode uint16) (bool, error) {
+func (c *cpu) exec(
+	opcode uint16,
+	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
+	flushPlugin func() error,
+	) (bool, error) {
 	// decode
 	family := opcode & 0xF000          // the highest 4 bits of the opcode
 	nnn := opcode & 0x0FFF             // addr
@@ -279,7 +286,7 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		c.v[0xF] = 0x00
 
 		// update display only when exec returns
-		defer termbox.Flush()
+		defer flushPlugin()
 
 		// iterate through sprite rows
 		var rows uint8
@@ -311,9 +318,9 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 				pixel := ((uint8(c.mem[c.i+uint16(rows)]) << cols) & 0x80) >> 0x07
 				c.disp[dispY][dispX] = c.disp[dispY][dispX] ^ pixel
 				if c.disp[dispY][dispX] == 1 {
-					printPixel(dispX, dispY, '█')
+					c.draw(dispX, dispY, '█', drawPlugin)
 				} else {
-					printPixel(dispX, dispY, ' ')
+					c.draw(dispX, dispY, ' ', drawPlugin)
 				}
 
 				// is the pixel now off?
@@ -417,7 +424,7 @@ func main() {
 	c := &cpu{}
 	program, _ := ioutil.ReadFile("Particle Demo [zeroZshadow, 2008].ch8")
 	c.init(program)
-	for c.cycle() {
+	for c.cycle(termbox.SetCell, termbox.Flush) {
 		time.Sleep(16 * time.Millisecond)
 	}
 }
