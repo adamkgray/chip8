@@ -439,7 +439,7 @@ func main() {
 	defer termbox.Close()
 
 	c := &cpu{}
-	program, _ := ioutil.ReadFile("Particle Demo [zeroZshadow, 2008].ch8")
+	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Tetris [Fran Dachille, 1991].ch8")
 	c.init(program)
 	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep) {
 	}
