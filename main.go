@@ -135,7 +135,7 @@ func getKeys(kill *bool, keys []uint8, pollEventPlugin func() termbox.Event) {
 		default:
 			continue
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -190,7 +190,7 @@ func (c *cpu) cycle(
 	}
 
 	// run at rate of 60Hz
-	sleepPlugin(15 * time.Millisecond)
+	sleepPlugin(2 * time.Millisecond)
 
 	return ok
 }
