@@ -47,7 +47,8 @@ type cpu struct {
 	noDebug bool          // debug switch
 }
 
-// print pixel to display (configured for termbox)
+// print pixel to display
+// (configured explicitly for termbox)
 func (c *cpu) draw(x, y uint8, r rune, f func(x, y int, c rune, fg , bg termbox.Attribute)) {
 	wideX := int(x * 2)
 	wideY := int(y)
@@ -74,14 +75,30 @@ func (c *cpu) init(program []byte) {
 func (c *cpu) cycle(
 	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
 	flushPlugin func() error,
+	sleepPlugin func(d time.Duration),
 ) bool {
 	// fetch opcode
 	opcode := c.fetch()
+
 	// exec opcode
 	ok, err := c.exec(opcode, drawPlugin, flushPlugin)
 	if err != nil {
 		log.Print(err)
 	}
+
+	// decrement delay timer
+	if c.dt > 0 {
+		c.dt -= 1
+	}
+
+	// decrement sound timer
+	if c.st > 0 {
+		c.st -= 1
+	}
+
+	// run at rate of 60Hz
+	sleepPlugin((1000 / 60) * time.Millisecond)
+
 	return ok
 }
 
@@ -424,7 +441,6 @@ func main() {
 	c := &cpu{}
 	program, _ := ioutil.ReadFile("Particle Demo [zeroZshadow, 2008].ch8")
 	c.init(program)
-	for c.cycle(termbox.SetCell, termbox.Flush) {
-		time.Sleep(16 * time.Millisecond)
+	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep) {
 	}
 }
