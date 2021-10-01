@@ -3,9 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
-	"io/ioutil"
+	"os"
+	"time"
+
+	"github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
 )
 
 // character sprites used by chip8 programs
@@ -29,17 +34,25 @@ var sprites = []uint8{
 }
 
 type cpu struct {
-	mem 	[4096]uint8		// memory
-	pc  	uint16			// programme counter
-	v 		[16]uint8		// general registers
-	i 		uint16			// special 'i' register
-	dt 		uint8			// delay timer
-	st 		uint8			// sound timer
-	sp 		uint8			// stack pointer
-	stack 	[16]uint16		// stack
-	keys 	[16]uint8		// keyboard
-	disp 	[32][64]uint8 	// display
-	noDebug bool			// debug switch
+	mem     [4096]uint8   // memory
+	pc      uint16        // programme counter
+	v       [16]uint8     // general registers
+	i       uint16        // special 'i' register
+	dt      uint8         // delay timer
+	st      uint8         // sound timer
+	sp      uint8         // stack pointer
+	stack   [16]uint16    // stack
+	keys    [16]uint8     // keyboard
+	disp    [32][64]uint8 // display
+	noDebug bool          // debug switch
+}
+
+// print pixel to display
+func printPixel(x, y uint8, c rune) {
+	wideX := int(x * 2)
+	wideY := int(y)
+	termbox.SetCell(wideX, wideY, c, termbox.ColorGreen, termbox.ColorDefault)
+	termbox.SetCell(wideX+runewidth.RuneWidth(c), wideY, c, termbox.ColorGreen, termbox.ColorDefault)
 }
 
 // set initial state, prerequisite for all program execution
@@ -67,6 +80,12 @@ func (c *cpu) cycle() bool {
 		log.Print(err)
 	}
 	return ok
+}
+
+// halt until any key is pressed, return key value
+func (c *cpu) getkey() uint8 {
+	// TODO: get actual key press
+	return 0
 }
 
 // fetch next opcode and advance program counter
@@ -104,8 +123,8 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		case 0x00E0:
 			instruction = "00E0"
 			cPseudo = "clear()"
-			for i := 0; i < 32; i ++ {
-				for j := 0; j < 64; j ++ {
+			for i := 0; i < 32; i++ {
+				for j := 0; j < 64; j++ {
 					c.disp[i][j] = 0x00
 				}
 			}
@@ -259,6 +278,9 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		// assume no pixels will be erased
 		c.v[0xF] = 0x00
 
+		// update display only when exec returns
+		defer termbox.Flush()
+
 		// iterate through sprite rows
 		var rows uint8
 		for rows = 0; rows < n; rows++ {
@@ -286,30 +308,23 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 				// bit shift it to the left for the correct pixel
 				// mask it with 0x80 to get only the leftmost bit
 				// shift that bit all the way back to the right to get a 1 or 0
-				pixel := ((uint8(c.mem[c.i + uint16(rows)])<<cols) & 0x80)>>0x07
+				pixel := ((uint8(c.mem[c.i+uint16(rows)]) << cols) & 0x80) >> 0x07
 				c.disp[dispY][dispX] = c.disp[dispY][dispX] ^ pixel
+				if c.disp[dispY][dispX] == 1 {
+					printPixel(dispX, dispY, '█')
+				} else {
+					printPixel(dispX, dispY, ' ')
+				}
 
 				// is the pixel now off?
 				pixelNowOff := c.disp[dispY][dispX] == 0
 
 				// flag VF if any pixels were erased
-
 				if pixelWasOn && pixelNowOff {
 					c.v[0xF] = 0x01
 				}
 
 			}
-		}
-		fmt.Print("\033[H\033[2J")
-		for row := range c.disp {
-			for col := range c.disp[row] {
-				if c.disp[row][col] == 1 {
-					fmt.Printf("██")
-				} else {
-					fmt.Printf("  ")
-				}
-			}
-			fmt.Print("\n")
 		}
 	case 0xE000:
 		switch kk {
@@ -358,22 +373,22 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 		case 0x33:
 			instruction = "FX33"
 			cPseudo = "mem[i], mem[i+1], mem[i+2] = BCD(v[x])"
-			c.mem[c.i] 		= c.v[x] / 100
-			c.mem[c.i + 1]	= (c.v[x] % 100) / 10
-			c.mem[c.i + 2]	= ((c.v[x] % 100) % 10) / 1
+			c.mem[c.i] = c.v[x] / 100
+			c.mem[c.i+1] = (c.v[x] % 100) / 10
+			c.mem[c.i+2] = ((c.v[x] % 100) % 10) / 1
 		case 0x55:
 			instruction = "FX55"
 			cPseudo = "mem[i:i+x] = v[0:x]"
 			var j uint8
 			for j = 0; j <= x; j++ {
-				c.mem[c.i + uint16(j)] = c.v[j]
+				c.mem[c.i+uint16(j)] = c.v[j]
 			}
 		case 0x65:
 			instruction = "FX65"
 			cPseudo = "v[0:x] = mem[i:i+x]"
 			var j uint8
 			for j = 0; j <= x; j++ {
-				c.v[j] = c.mem[c.i + uint16(j)]
+				c.v[j] = c.mem[c.i+uint16(j)]
 			}
 		}
 	}
@@ -391,16 +406,18 @@ func (c *cpu) exec(opcode uint16) (bool, error) {
 	return true, nil
 }
 
-// halt until any key is pressed, return key value
-func (c *cpu) getkey() uint8 {
-	// TODO: get actual key press
-	return 0
-}
-
 func main() {
+	err := termbox.Init()
+	if err != nil {
+		log.Printf("fatal termbox error: %s", err)
+		os.Exit(1)
+	}
+	defer termbox.Close()
+
 	c := &cpu{}
-	program, _ := ioutil.ReadFile("Maze (alt) [David Winter, 199x].ch8")
+	program, _ := ioutil.ReadFile("Particle Demo [zeroZshadow, 2008].ch8")
 	c.init(program)
 	for c.cycle() {
+		time.Sleep(16 * time.Millisecond)
 	}
 }
