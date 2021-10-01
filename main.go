@@ -47,6 +47,98 @@ type cpu struct {
 	noDebug bool          // debug switch
 }
 
+// halt until any key is pressed, return key value
+func getKey(pollEventPlugin func() termbox.Event) uint8 {
+	for {
+		ev := pollEventPlugin()
+		switch ev.Ch {
+		case '1':
+			return 0
+		case '2':
+			return 1
+		case '3':
+			return 2
+		case '4':
+			return 3
+		case 'q':
+			return 4
+		case 'w':
+			return 5
+		case 'e':
+			return 6
+		case 'r':
+			return 7
+		case 'a':
+			return 8
+		case 's':
+			return 9
+		case 'd':
+			return 10
+		case 'f':
+			return 11
+		case 'z':
+			return 12
+		case 'x':
+			return 13
+		case 'c':
+			return 14
+		case 'v':
+			return 15
+		default:
+			continue
+		}
+	}
+}
+
+func handleKeys(kill *bool, keys []uint8, pollEventPlugin func() termbox.Event) {
+	for {
+		for i := range keys {
+			keys[i] = 0
+		}
+		ev := pollEventPlugin()
+		switch ev.Ch {
+		case '0':
+			*kill = true
+			return
+		case '1':
+			keys[0] = 1
+		case '2':
+			keys[1] = 1
+		case '3':
+			keys[2] = 1
+		case '4':
+			keys[3] = 1
+		case 'q':
+			keys[4] = 1
+		case 'w':
+			keys[5] = 1
+		case 'e':
+			keys[6] = 1
+		case 'r':
+			keys[7] = 1
+		case 'a':
+			keys[8] = 1
+		case 's':
+			keys[9] = 1
+		case 'd':
+			keys[10] = 1
+		case 'f':
+			keys[11] = 1
+		case 'z':
+			keys[12] = 1
+		case 'x':
+			keys[13] = 1
+		case 'c':
+			keys[14] = 1
+		case 'v':
+			keys[15] = 1
+		default:
+			continue
+		}
+		time.Sleep((1000 / 15) * time.Millisecond)
+	}
+}
+
 // print pixel to display
 // (configured explicitly for termbox)
 func (c *cpu) draw(x, y uint8, r rune, f func(x, y int, c rune, fg , bg termbox.Attribute)) {
@@ -102,11 +194,6 @@ func (c *cpu) cycle(
 	return ok
 }
 
-// halt until any key is pressed, return key value
-func (c *cpu) getkey() uint8 {
-	// TODO: get actual key press
-	return 0
-}
 
 // fetch next opcode and advance program counter
 func (c *cpu) fetch() uint16 {
@@ -376,8 +463,8 @@ func (c *cpu) exec(
 			c.v[x] = c.dt
 		case 0x0A:
 			instruction = "FX0A"
-			cPseudo = "v[x] = getkey()"
-			c.v[x] = c.getkey()
+			cPseudo = "v[x] = getKey()"
+			c.v[x] = getKey()
 		case 0x15:
 			instruction = "FX15"
 			cPseudo = "dt = v[x]"
@@ -431,6 +518,7 @@ func (c *cpu) exec(
 }
 
 func main() {
+	// raw calls to termbox
 	err := termbox.Init()
 	if err != nil {
 		log.Printf("fatal termbox error: %s", err)
@@ -438,9 +526,17 @@ func main() {
 	}
 	defer termbox.Close()
 
-	c := &cpu{}
+	// read rom into buffer
 	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Space Invaders [David Winter].ch8")
+
+	// init CHIP8
+	c := &cpu{}
 	c.init(program)
+	kill := false
+	go handleKeys(&kill, c.keys[:], termbox.PollEvent)
+
+	// play ^.^
 	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep) {
+		if kill { return }
 	}
 }
