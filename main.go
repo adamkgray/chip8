@@ -168,12 +168,13 @@ func (c *cpu) cycle(
 	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
 	flushPlugin func() error,
 	sleepPlugin func(d time.Duration),
+	pollEventPlugin func() termbox.Event,
 ) bool {
 	// fetch opcode
 	opcode := c.fetch()
 
 	// exec opcode
-	ok, err := c.exec(opcode, drawPlugin, flushPlugin)
+	ok, err := c.exec(opcode, drawPlugin, flushPlugin, pollEventPlugin)
 	if err != nil {
 		log.Print(err)
 	}
@@ -213,6 +214,7 @@ func (c *cpu) exec(
 	opcode uint16,
 	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
 	flushPlugin func() error,
+	pollEventPlugin func() termbox.Event,
 	) (bool, error) {
 	// decode
 	family := opcode & 0xF000          // the highest 4 bits of the opcode
@@ -464,7 +466,7 @@ func (c *cpu) exec(
 		case 0x0A:
 			instruction = "FX0A"
 			cPseudo = "v[x] = getKey()"
-			c.v[x] = getKey()
+			c.v[x] = getKey(pollEventPlugin)
 		case 0x15:
 			instruction = "FX15"
 			cPseudo = "dt = v[x]"
@@ -536,7 +538,7 @@ func main() {
 	go handleKeys(&kill, c.keys[:], termbox.PollEvent)
 
 	// play ^.^
-	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep) {
+	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep, termbox.PollEvent) {
 		if kill { return }
 	}
 }
