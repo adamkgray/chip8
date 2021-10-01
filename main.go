@@ -53,44 +53,44 @@ func getKey(pollEventPlugin func() termbox.Event) uint8 {
 		ev := pollEventPlugin()
 		switch ev.Ch {
 		case '1':
-			return 0
+			return 0x1
 		case '2':
-			return 1
+			return 0x2
 		case '3':
-			return 2
+			return 0x3
 		case '4':
-			return 3
+			return 0xC
 		case 'q':
-			return 4
+			return 0x4
 		case 'w':
-			return 5
+			return 0x5
 		case 'e':
-			return 6
+			return 0x6
 		case 'r':
-			return 7
+			return 0xD
 		case 'a':
-			return 8
+			return 0x7
 		case 's':
-			return 9
+			return 0x8
 		case 'd':
-			return 10
+			return 0x9
 		case 'f':
-			return 11
+			return 0xE
 		case 'z':
-			return 12
+			return 0xA
 		case 'x':
-			return 13
+			return 0x0
 		case 'c':
-			return 14
+			return 0xB
 		case 'v':
-			return 15
+			return 0xF
 		default:
 			continue
 		}
 	}
 }
 
-func handleKeys(kill *bool, keys []uint8, pollEventPlugin func() termbox.Event) {
+func getKeys(kill *bool, keys []uint8, pollEventPlugin func() termbox.Event) {
 	for {
 		for i := range keys {
 			keys[i] = 0
@@ -135,7 +135,7 @@ func handleKeys(kill *bool, keys []uint8, pollEventPlugin func() termbox.Event) 
 		default:
 			continue
 		}
-		time.Sleep((1000 / 15) * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -190,7 +190,7 @@ func (c *cpu) cycle(
 	}
 
 	// run at rate of 60Hz
-	sleepPlugin((1000 / 60) * time.Millisecond)
+	sleepPlugin(15 * time.Millisecond)
 
 	return ok
 }
@@ -529,13 +529,13 @@ func main() {
 	defer termbox.Close()
 
 	// read rom into buffer
-	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Space Invaders [David Winter].ch8")
+	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Pong (1 player).ch8")
 
 	// init CHIP8
 	c := &cpu{}
 	c.init(program)
 	kill := false
-	go handleKeys(&kill, c.keys[:], termbox.PollEvent)
+	go getKeys(&kill, c.keys[:], termbox.PollEvent)
 
 	// play ^.^
 	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep, termbox.PollEvent) {
