@@ -11,6 +11,7 @@ import (
 
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
+	"github.com/azul3d/engine/keyboard"
 )
 
 // character sprites used by chip8 programs
@@ -33,6 +34,26 @@ var sprites = []uint8{
 	0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 }
 
+var keyMapPlugin = map[int]keyboard.Key{
+	0x0: keyboard.X,
+	0x1: keyboard.One,
+	0x2: keyboard.Two,
+	0x3: keyboard.Three,
+	0x4: keyboard.Q,
+	0x5: keyboard.W,
+	0x6: keyboard.E,
+	0x7: keyboard.A,
+	0x8: keyboard.S,
+	0x9: keyboard.D,
+	0xA: keyboard.Z,
+	0xB: keyboard.C,
+	0xC: keyboard.Four,
+	0xD: keyboard.R,
+	0xE: keyboard.F,
+	0xF: keyboard.V,
+}
+
+
 type cpu struct {
 	mem     [4096]uint8   // memory
 	pc      uint16        // programme counter
@@ -42,9 +63,8 @@ type cpu struct {
 	st      uint8         // sound timer
 	sp      uint8         // stack pointer
 	stack   [16]uint16    // stack
-	keys    [16]uint8     // keyboard
+	//keys    [16]uint8     // keyboard
 	disp    [32][64]uint8 // display
-	noDebug bool          // debug switch
 }
 
 // halt until any key is pressed, return key value
@@ -90,52 +110,16 @@ func getKey(pollEventPlugin func() termbox.Event) uint8 {
 	}
 }
 
-func getKeys(kill *bool, keys []uint8, pollEventPlugin func() termbox.Event) {
+func killSwitch(kill *bool, pollEventPlugin func() termbox.Event) {
 	for {
-		for i := range keys {
-			keys[i] = 0
-		}
 		ev := pollEventPlugin()
 		switch ev.Ch {
 		case '0':
 			*kill = true
 			return
-		case '1':
-			keys[0] = 1
-		case '2':
-			keys[1] = 1
-		case '3':
-			keys[2] = 1
-		case '4':
-			keys[3] = 1
-		case 'q':
-			keys[4] = 1
-		case 'w':
-			keys[5] = 1
-		case 'e':
-			keys[6] = 1
-		case 'r':
-			keys[7] = 1
-		case 'a':
-			keys[8] = 1
-		case 's':
-			keys[9] = 1
-		case 'd':
-			keys[10] = 1
-		case 'f':
-			keys[11] = 1
-		case 'z':
-			keys[12] = 1
-		case 'x':
-			keys[13] = 1
-		case 'c':
-			keys[14] = 1
-		case 'v':
-			keys[15] = 1
 		default:
 			continue
 		}
-		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -169,12 +153,13 @@ func (c *cpu) cycle(
 	flushPlugin func() error,
 	sleepPlugin func(d time.Duration),
 	pollEventPlugin func() termbox.Event,
+	keydownPlugin *keyboard.Watcher,
 ) bool {
 	// fetch opcode
 	opcode := c.fetch()
 
 	// exec opcode
-	ok, err := c.exec(opcode, drawPlugin, flushPlugin, pollEventPlugin)
+	ok, err := c.exec(opcode, drawPlugin, flushPlugin, pollEventPlugin, keydownPlugin)
 	if err != nil {
 		log.Print(err)
 	}
@@ -215,6 +200,7 @@ func (c *cpu) exec(
 	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
 	flushPlugin func() error,
 	pollEventPlugin func() termbox.Event,
+	keydownPlugin *keyboard.Watcher,
 	) (bool, error) {
 	// decode
 	family := opcode & 0xF000          // the highest 4 bits of the opcode
@@ -443,14 +429,16 @@ func (c *cpu) exec(
 		switch kk {
 		case 0x9E:
 			instruction = "EX9E"
-			cPseudo = "if keys[v[x]] == PRESSED: pc += 2"
-			if c.keys[c.v[x]] == 1 {
+			cPseudo = "if keys[v[x]] == DOWN: pc += 2"
+			keyIsDown := keydownPlugin.Down(keyMapPlugin[int(c.v[x])])
+			if keyIsDown {
 				c.pc += 2
 			}
 		case 0xA1:
-			instruction = "EX9E"
-			cPseudo = "if keys[v[x]] == !PRESSED: pc += 2"
-			if c.keys[c.v[x]] == 0 {
+			instruction = "EXA1"
+			cPseudo = "if keys[v[x]] == UP: pc += 2"
+			keyIsUp := keydownPlugin.Up(keyMapPlugin[int(c.v[x])])
+			if keyIsUp {
 				c.pc += 2
 			}
 		default:
@@ -506,20 +494,23 @@ func (c *cpu) exec(
 		}
 	}
 
-	if c.noDebug {
-		log.Printf(
-			"opcode: 0x%X, instruction: %s, cPseudo: %s, memaddr: 0x%X",
-			opcode,
-			instruction,
-			cPseudo,
-			pc,
-		)
-	}
+	log.Printf(
+		"opcode: 0x%X, instruction: %s, cPseudo: %s, memaddr: 0x%X",
+		opcode,
+		instruction,
+		cPseudo,
+		pc,
+	)
 
 	return true, nil
 }
 
 func main() {
+	// set logging
+	logFile, _ := os.OpenFile("ch8.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	// raw calls to termbox
 	err := termbox.Init()
 	if err != nil {
@@ -529,16 +520,26 @@ func main() {
 	defer termbox.Close()
 
 	// read rom into buffer
-	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Pong (1 player).ch8")
+	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Pong (alt).ch8")
 
 	// init CHIP8
 	c := &cpu{}
 	c.init(program)
+
+	// killswitch engage
 	kill := false
-	go getKeys(&kill, c.keys[:], termbox.PollEvent)
+	go killSwitch(&kill, termbox.PollEvent)
+
+	// keydown daemon
+	watcher := keyboard.NewWatcher()
 
 	// play ^.^
-	for c.cycle(termbox.SetCell, termbox.Flush, time.Sleep, termbox.PollEvent) {
+	for c.cycle(
+		termbox.SetCell,
+		termbox.Flush,
+		time.Sleep,
+		termbox.PollEvent,
+		watcher) {
 		if kill { return }
 	}
 }

@@ -1,3 +1,5 @@
+github.com/azul3d/engine v0.0.0-20180624221640-25c8eab2d474 h1:wYEdiEOScBNtoyzGq00VYjzanx8yCwr6IK/tsvs/Ql4=
+github.com/azul3d/engine v0.0.0-20180624221640-25c8eab2d474/go.mod h1:XJaK+eQA5QZRq/Y8jYtJnUGhqAfHxG3z2PgwiHvE2BA=
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/mattn/go-runewidth v0.0.13 h1:lTGmDsbAYt5DmK6OnoV7EuIF1wEIFAcxld6ypU4OSgU=
 github.com/mattn/go-runewidth v0.0.13/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
