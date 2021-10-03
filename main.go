@@ -11,7 +11,7 @@ import (
 
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
-	"github.com/azul3d/engine/keyboard"
+	"azul3d.org/engine/keyboard"
 )
 
 // character sprites used by chip8 programs
@@ -433,6 +433,11 @@ func (c *cpu) exec(
 			keyIsDown := keydownPlugin.Down(keyMapPlugin[int(c.v[x])])
 			if keyIsDown {
 				c.pc += 2
+				panic(fmt.Sprintf(
+					"x=%d\nv[x]=%d",
+					x,
+					c.v[x],
+				))
 			}
 		case 0xA1:
 			instruction = "EXA1"
@@ -521,7 +526,7 @@ func main() {
 		log.Printf("fatal termbox error: %s", err)
 		os.Exit(1)
 	}
-	defer termbox.Close()
+	//defer termbox.Close()
 
 	// read rom into buffer
 	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Pong (alt).ch8")
@@ -534,8 +539,16 @@ func main() {
 	kill := false
 	go killSwitch(&kill, termbox.PollEvent)
 
+
 	// keydown daemon
 	watcher := keyboard.NewWatcher()
+
+	go func() {
+		time.Sleep(3 * time.Second)
+		if watcher.Down(keyboard.One) {
+			kill = true
+		}
+	}()
 
 	// play ^.^
 	for c.cycle(
@@ -544,6 +557,9 @@ func main() {
 		time.Sleep,
 		termbox.PollEvent,
 		watcher) {
-		if kill { return }
+		if kill { break }
 	}
+	termbox.Close()
+
+	fmt.Printf("%v", watcher.States())
 }
