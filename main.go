@@ -529,7 +529,7 @@ func main() {
 	//defer termbox.Close()
 
 	// read rom into buffer
-	program, _ := ioutil.ReadFile("/Users/adamkgray/Code/Open Source/chip8/roms/games/Pong (alt).ch8")
+	program, _ := ioutil.ReadFile("pong.ch8")
 
 	// init CHIP8
 	c := &cpu{}
