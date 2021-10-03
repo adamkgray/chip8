@@ -507,12 +507,16 @@ func (c *cpu) exec(
 
 func main() {
 	// set logging
-	logFile, _ := os.OpenFile("ch8.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	logFile, err := os.OpenFile("ch8.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Printf("fatal logfile error: %s", err)
+		os.Exit(1)
+	}
 	defer logFile.Close()
 	log.SetOutput(logFile)
 
 	// raw calls to termbox
-	err := termbox.Init()
+	err = termbox.Init()
 	if err != nil {
 		log.Printf("fatal termbox error: %s", err)
 		os.Exit(1)
