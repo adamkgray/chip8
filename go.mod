@@ -6,4 +6,5 @@ require (
 	azul3d.org/engine v0.0.0-20180624221640-25c8eab2d474
 	github.com/mattn/go-runewidth v0.0.13
 	github.com/nsf/termbox-go v1.1.1
+	github.com/veandco/go-sdl2 v0.4.10 // indirect
 )
