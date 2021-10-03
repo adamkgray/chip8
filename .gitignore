@@ -6,6 +6,7 @@
 *.dylib
 main
 chip8
+ch8.log
 
 # Test binary, built with `go test -c`
 *.test
