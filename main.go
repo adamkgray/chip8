@@ -433,11 +433,6 @@ func (c *cpu) exec(
 			keyIsDown := keydownPlugin.Down(keyMapPlugin[int(c.v[x])])
 			if keyIsDown {
 				c.pc += 2
-				panic(fmt.Sprintf(
-					"x=%d\nv[x]=%d",
-					x,
-					c.v[x],
-				))
 			}
 		case 0xA1:
 			instruction = "EXA1"
@@ -561,5 +556,5 @@ func main() {
 	}
 	termbox.Close()
 
-	fmt.Printf("%v", watcher.States())
+	fmt.Printf("%v", watcher.String())
 }
