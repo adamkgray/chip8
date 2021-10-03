@@ -155,15 +155,6 @@ func (c *cpu) cycle(
 	pollEventPlugin func() termbox.Event,
 	keydownPlugin *keyboard.Watcher,
 ) bool {
-	// fetch opcode
-	opcode := c.fetch()
-
-	// exec opcode
-	ok, err := c.exec(opcode, drawPlugin, flushPlugin, pollEventPlugin, keydownPlugin)
-	if err != nil {
-		log.Print(err)
-	}
-
 	// decrement delay timer
 	if c.dt > 0 {
 		c.dt -= 1
@@ -174,8 +165,17 @@ func (c *cpu) cycle(
 		c.st -= 1
 	}
 
+	// fetch opcode
+	opcode := c.fetch()
+
+	// exec opcode
+	ok, err := c.exec(opcode, drawPlugin, flushPlugin, pollEventPlugin, keydownPlugin)
+	if err != nil {
+		log.Print(err)
+	}
+
 	// run at rate of 60Hz
-	sleepPlugin(2 * time.Millisecond)
+	sleepPlugin(5 * time.Millisecond)
 
 	return ok
 }
