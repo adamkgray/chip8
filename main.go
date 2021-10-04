@@ -11,6 +11,7 @@ import (
 
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 // character sprites used by chip8 programs
@@ -34,16 +35,68 @@ var sprites = []uint8{
 }
 
 type cpu struct {
-	mem     [4096]uint8   // memory
-	pc      uint16        // programme counter
-	v       [16]uint8     // general registers
-	i       uint16        // special 'i' register
-	dt      uint8         // delay timer
-	st      uint8         // sound timer
-	sp      uint8         // stack pointer
-	stack   [16]uint16    // stack
-	keys    [16]uint8     // keyboard
-	disp    [32][64]uint8 // display
+	mem   [4096]uint8   // memory
+	pc    uint16        // programme counter
+	v     [16]uint8     // general registers
+	i     uint16        // special 'i' register
+	dt    uint8         // delay timer
+	st    uint8         // sound timer
+	sp    uint8         // stack pointer
+	stack [16]uint16    // stack
+	keys  [16]uint8     // keyboard
+	disp  [32][64]uint8 // display
+}
+
+var sdlKeyMap = map[int]byte{
+	sdl.SCANCODE_1: 0x1,
+	sdl.SCANCODE_2: 0x2,
+	sdl.SCANCODE_3: 0x3,
+	sdl.SCANCODE_4: 0xC,
+	sdl.SCANCODE_Q: 0x4,
+	sdl.SCANCODE_W: 0x5,
+	sdl.SCANCODE_E: 0x6,
+	sdl.SCANCODE_R: 0xD,
+	sdl.SCANCODE_A: 0x7,
+	sdl.SCANCODE_S: 0x8,
+	sdl.SCANCODE_D: 0x9,
+	sdl.SCANCODE_F: 0xE,
+	sdl.SCANCODE_Z: 0xA,
+	sdl.SCANCODE_X: 0x0,
+	sdl.SCANCODE_C: 0xB,
+	sdl.SCANCODE_V: 0xF,
+	sdl.SCANCODE_0: 0x10,
+}
+
+func pollKeys(k []uint8, kill *bool) {
+	for {
+		if *kill {
+			return
+		}
+		e := sdl.PollEvent()
+		switch ev := e.(type) {
+		case *sdl.KeyboardEvent:
+			switch ev.Type {
+			case sdl.KEYDOWN:
+				key := int(ev.Keysym.Scancode)
+				if i, ok := sdlKeyMap[key]; ok {
+					if i == 0x10 {
+						*kill = true
+						return
+					}
+					k[i] = 1
+				}
+			case sdl.KEYUP:
+				key := int(ev.Keysym.Scancode)
+				if i, ok := sdlKeyMap[key]; ok {
+					k[i] = 0
+				}
+			default:
+				continue
+			}
+		default:
+			continue
+		}
+	}
 }
 
 // halt until any key is pressed, return key value
@@ -89,22 +142,9 @@ func getKey(pollEventPlugin func() termbox.Event) uint8 {
 	}
 }
 
-func killSwitch(kill *bool, pollEventPlugin func() termbox.Event) {
-	for {
-		ev := pollEventPlugin()
-		switch ev.Ch {
-		case '0':
-			*kill = true
-			return
-		default:
-			continue
-		}
-	}
-}
-
 // print pixel to display
 // (configured explicitly for termbox)
-func (c *cpu) draw(x, y uint8, r rune, f func(x, y int, c rune, fg , bg termbox.Attribute)) {
+func (c *cpu) draw(x, y uint8, r rune, f func(x, y int, c rune, fg, bg termbox.Attribute)) {
 	wideX := int(x * 2)
 	wideY := int(y)
 	f(wideX, wideY, r, termbox.ColorGreen, termbox.ColorDefault)
@@ -128,41 +168,48 @@ func (c *cpu) init(program []byte) {
 
 // fetch and execute single opcode
 func (c *cpu) cycle(
-	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
+	drawPlugin func(x, y int, c rune, fg, bg termbox.Attribute),
 	flushPlugin func() error,
 	sleepPlugin func(d time.Duration),
 	pollEventPlugin func() termbox.Event,
-) bool {
-	// decrement delay timer
-	if c.dt > 0 {
-		c.dt -= 1
+	kill *bool,
+) {
+	for {
+		// kill switch
+		if *kill {
+			return
+		}
+
+		// decrement delay timer
+		if c.dt > 0 {
+			c.dt -= 1
+		}
+
+		// decrement sound timer
+		if c.st > 0 {
+			c.st -= 1
+		}
+
+		// fetch opcode
+		opcode := c.fetch()
+
+		// exec opcode
+		err := c.exec(
+			opcode,
+			drawPlugin,
+			flushPlugin,
+			pollEventPlugin,
+		)
+		if err != nil {
+			log.Print(err)
+			*kill = true
+			return
+		}
+
+		// run at rate of 60Hz
+		sleepPlugin(3 * time.Millisecond)
 	}
-
-	// decrement sound timer
-	if c.st > 0 {
-		c.st -= 1
-	}
-
-	// fetch opcode
-	opcode := c.fetch()
-
-	// exec opcode
-	ok, err := c.exec(
-		opcode,
-		drawPlugin,
-		flushPlugin,
-		pollEventPlugin,
-	)
-	if err != nil {
-		log.Print(err)
-	}
-
-	// run at rate of 60Hz
-	sleepPlugin(5 * time.Millisecond)
-
-	return ok
 }
-
 
 // fetch next opcode and advance program counter
 func (c *cpu) fetch() uint16 {
@@ -180,10 +227,10 @@ func (c *cpu) fetch() uint16 {
 // execute opcode
 func (c *cpu) exec(
 	opcode uint16,
-	drawPlugin func(x, y int, c rune, fg , bg termbox.Attribute),
+	drawPlugin func(x, y int, c rune, fg, bg termbox.Attribute),
 	flushPlugin func() error,
 	pollEventPlugin func() termbox.Event,
-	) (bool, error) {
+) (error) {
 	// decode
 	family := opcode & 0xF000          // the highest 4 bits of the opcode
 	nnn := opcode & 0x0FFF             // addr
@@ -217,7 +264,7 @@ func (c *cpu) exec(
 			c.stack[c.sp] = 0x00
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
-			return false, errors.New(msg)
+			return errors.New(msg)
 		}
 	case 0x1000:
 		instruction = "1NNN"
@@ -251,7 +298,7 @@ func (c *cpu) exec(
 			}
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
-			return false, errors.New(msg)
+			return errors.New(msg)
 		}
 	case 0x6000:
 		instruction = "6XKK"
@@ -326,7 +373,7 @@ func (c *cpu) exec(
 			c.v[x] = c.v[x] * 2
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
-			return false, errors.New(msg)
+			return errors.New(msg)
 		}
 	case 0x9000:
 		switch n {
@@ -338,7 +385,7 @@ func (c *cpu) exec(
 			}
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
-			return false, errors.New(msg)
+			return errors.New(msg)
 		}
 	case 0xA000:
 		instruction = "ANNN"
@@ -425,7 +472,7 @@ func (c *cpu) exec(
 			}
 		default:
 			msg := fmt.Sprintf("fatal error: unknown opcode 0x%X", opcode)
-			return false, errors.New(msg)
+			return errors.New(msg)
 		}
 	case 0xF000:
 		switch kk {
@@ -484,7 +531,7 @@ func (c *cpu) exec(
 		pc,
 	)
 
-	return true, nil
+	return nil
 }
 
 func main() {
@@ -496,6 +543,12 @@ func main() {
 	}
 	defer logFile.Close()
 	log.SetOutput(logFile)
+
+	// init SDL
+	err = sdl.Init(sdl.INIT_EVERYTHING)
+	if err != nil {
+		log.Printf("fatal SDL error: %s", err)
+	}
 
 	// raw calls to termbox
 	err = termbox.Init()
@@ -512,17 +565,18 @@ func main() {
 	c := &cpu{}
 	c.init(program)
 
-	// killswitch engage
+	// killswitch
 	kill := false
-	go killSwitch(&kill, termbox.PollEvent)
 
 	// play ^.^
-	for c.cycle(
+	go c.cycle(
 		termbox.SetCell,
 		termbox.Flush,
 		time.Sleep,
 		termbox.PollEvent,
-		) {
-		if kill { break }
-	}
+		&kill,
+	)
+
+	// sdl
+	pollKeys(c.keys[:], &kill)
 }
